@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet')
 const dotenv =  require('dotenv')
 const connectDB = require('./config/db')
+const cookieParser = require('cookie-parser')
 
 dotenv.config()
 
@@ -18,6 +19,8 @@ app.use(cors({
     origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
     credentials: true, //required for cookies (refresh token)
 }))
+
+app.use(cookieParser())
 
 // - Body Parsing -
 app.use(express.json())

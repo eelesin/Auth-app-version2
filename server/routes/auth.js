@@ -1,6 +1,6 @@
 const express = require('express')
 const { body } = require('express-validator')
-const { register } = require('../controllers/authController')
+const { register, login} = require('../controllers/authController')
 const validate = require('../middleware/validate')
 
 const router = express.Router();
@@ -28,5 +28,19 @@ const registerRules = [
 // Flow: rules run -> validate middleware checks -> controller executes
 
 router.post('/register', registerRules, validate, register);
+
+const loginRules = [
+    body('email')
+    .trim()
+    .notEmpty().withMessage('Email is required')
+    .isEmail().withMessage('Invalid email format')
+    .normalizeEmail(),
+
+    body('password')
+    .notEmpty().withMessage('Password is required')
+];
+
+//Post /api/auth/login
+router.post('/login', loginRules, validate, login)
 
 module.exports = router
