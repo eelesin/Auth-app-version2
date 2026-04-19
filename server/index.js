@@ -28,8 +28,8 @@ app.get("/api/health", (req, res) => {
     res.json({status: "ok", env: process.env.NODE_ENV})
 })
 
-// -- Routes (we will add these per phase) --
-//app.use('/api/auth', require('./routes/auth'));
+// -- Routes --
+app.use('/api/auth', require('./routes/auth'));
 // app.use('/api/users', require('.routes/user'));
 
 // --Global Error handler (always last)--
