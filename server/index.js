@@ -1,51 +1,59 @@
+const path = require('path');
+const dotenv = require('dotenv');
+dotenv.config({ path: path.join(__dirname, '.env') });
+
 const express = require('express');
 const cors = require('cors');
-const helmet = require('helmet')
-const dotenv =  require('dotenv')
-const connectDB = require('./config/db')
-const cookieParser = require('cookie-parser')
+const helmet = require('helmet');
+const cookieParser = require('cookie-parser');
+const connectDB = require('./config/db');
+const { authLimiter, generalLimiter } = require('./middleware/rateLimiter');
 
-dotenv.config()
+const app = express();
 
-const app = express()
+// Connect to MongoDB
+connectDB();
 
-//connect to MongoDB
-connectDB()
-
-//security middleware
-app.use(helmet());
+// ── Security middleware ──
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
 
 app.use(cors({
-    origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
-    credentials: true, //required for cookies (refresh token)
-}))
+  origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
+  credentials: true,
+}));
 
-app.use(cookieParser())
+// ── Body parsing ──
+app.use(express.json({ limit: '10kb' }));  // reject oversized payloads
+app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser());
 
-// - Body Parsing -
-app.use(express.json())
-app.use(express.urlencoded({ extended: false}))
+// ── Rate limiting ──
+app.use('/api/auth', authLimiter);   // strict — applied before routes
+app.use('/api', generalLimiter);     // general — applied to everything else
 
-// -- Health Check --
-app.get("/api/health", (req, res) => {
-    res.json({status: "ok", env: process.env.NODE_ENV})
-})
-
-// -- Routes --
+// ── Routes ──
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/user'));
 
-// --Global Error handler (always last)--
+// ── Health check ──
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', env: process.env.NODE_ENV });
+});
+
+// ── Global error handler — always last ──
 app.use((err, req, res, next) => {
-    const statusCode = err.statusCode || 500;
-    res.status(statusCode).json({
-        message: err.message || 'Internal server error',
-        // never expose stack traces outside dev
-        ...(process.env.NODE_ENV === 'development' && { stack: err.stack})
-    })
-})
+  const statusCode = err.statusCode || 500;
+
+  // Never expose stack traces outside development
+  res.status(statusCode).json({
+    message: err.message || 'Internal server error',
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+  });
+});
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, ()=> {
-    console.log(`server is running on port ${PORT} in ${process.env.NODE_ENV} mode`)
-})
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT} in ${process.env.NODE_ENV} mode`);
+});
